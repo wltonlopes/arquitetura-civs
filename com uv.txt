@@ -1,0 +1,106 @@
+import bpy
+import os
+
+# Caminho para salvar os arquivos .dae
+export_path = "C:/caminho/para/salvar/arquivos/"
+
+# Certifique-se de criar o diretório se ele não existir
+if not os.path.exists(export_path):
+    os.makedirs(export_path)
+
+# Função para criar o segundo mapa UV e assar o mapa AO
+def create_ao_bake(obj):
+    # Selecionar o objeto
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    # Adicionar um segundo mapa UV
+    bpy.ops.mesh.uv_texture_add()
+    obj.data.uv_layers.active_index = len(obj.data.uv_layers) - 1
+
+    # Criar uma nova imagem para o AO
+    bpy.ops.image.new(name="AO_Bake", width=1024, height=1024, color=(1, 1, 1, 1), alpha=True, generated_type='BLANK')
+    ao_image = bpy.data.images["AO_Bake"]
+
+    # Atribuir a nova imagem ao UV Map
+    if len(obj.data.uv_layers) > 1:
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.uv.select_all(action='SELECT')
+        bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        bpy.data.screens['UV Editing'].areas[1].spaces[0].image = ao_image
+
+        # Configurar os nodes para o bake
+        if not obj.data.materials:
+            mat = bpy.data.materials.new(name="AO_Material")
+            obj.data.materials.append(mat)
+        else:
+            mat = obj.data.materials[0]
+        
+        mat.use_nodes = True
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+
+        # Limpar os nodes existentes
+        for node in nodes:
+            nodes.remove(node)
+
+        # Adicionar nodes necessários
+        uv_map_node = nodes.new(type='ShaderNodeUVMap')
+        uv_map_node.uv_map = obj.data.uv_layers[-1].name
+        uv_map_node.location = (-300, 0)
+
+        ao_node = nodes.new(type='ShaderNodeAmbientOcclusion')
+        ao_node.location = (0, 0)
+
+        output_node = nodes.new(type='ShaderNodeOutputMaterial')
+        output_node.location = (300, 0)
+
+        links.new(uv_map_node.outputs[0], ao_node.inputs[0])
+        links.new(ao_node.outputs[0], output_node.inputs[0])
+
+        # Bake settings
+        bpy.context.scene.render.bake.use_selected_to_active = False
+        bpy.context.scene.render.bake.use_clear = True
+        bpy.context.scene.render.bake.use_cage = False
+        bpy.context.scene.render.bake.margin = 4
+        bpy.context.scene.render.bake.cage_extrusion = 0.1
+        bpy.context.scene.render.bake.bias = 0.001
+        bpy.context.scene.render.bake.use_pass_direct = False
+        bpy.context.scene.render.bake.use_pass_indirect = False
+        bpy.context.scene.render.bake.use_pass_color = True
+
+        # Bake the AO map
+        bpy.ops.object.bake(type='AO')
+
+        # Salvar a imagem
+        ao_image.filepath_raw = os.path.join(export_path, f"{obj.name}_AO.png")
+        ao_image.file_format = 'PNG'
+        ao_image.save()
+
+        # Limpar a seleção
+        obj.select_set(False)
+
+# Desativar todos os objetos
+for obj in bpy.data.objects:
+    obj.select_set(False)
+
+# Processar cada objeto individualmente
+for obj in bpy.data.objects:
+    if obj.type == 'MESH':  # Verifique se é um objeto de malha
+        create_ao_bake(obj)
+
+        # Selecionar o objeto novamente para exportar
+        obj.select_set(True)
+
+        # Caminho completo para o arquivo .dae
+        obj_export_path = os.path.join(export_path, f"{obj.name}.dae")
+
+        # Exportar o objeto selecionado
+        bpy.ops.wm.collada_export(filepath=obj_export_path, selected=True)
+
+        # Desselecionar o objeto após a exportação
+        obj.select_set(False)
+
+print("Exportação concluída.")

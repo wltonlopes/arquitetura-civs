@@ -1,0 +1,42 @@
+import bpy
+import os
+
+# Caminho para salvar os arquivos .dae
+export_path = "C:/caminho/para/salvar/arquivos/"
+
+# Certifique-se de criar o diretório se ele não existir
+if not os.path.exists(export_path):
+    os.makedirs(export_path)
+
+# Função para adicionar props aos objetos
+def add_props(obj):
+    # Adicionar prop_garrisoned
+    if "prop_garrisoned" not in obj.keys():
+        obj["prop_garrisoned"] = "some_value_garrisoned"
+
+    # Adicionar prop_projectile
+    if "prop_projectile" not in obj.keys():
+        obj["prop_projectile"] = "some_value_projectile"
+
+# Desativar todos os objetos
+for obj in bpy.data.objects:
+    obj.select_set(False)
+
+# Processar cada objeto individualmente
+for obj in bpy.data.objects:
+    if obj.type == 'MESH':  # Verifique se é um objeto de malha
+        add_props(obj)
+
+        # Selecionar o objeto para exportar
+        obj.select_set(True)
+
+        # Caminho completo para o arquivo .dae
+        obj_export_path = os.path.join(export_path, f"{obj.name}.dae")
+
+        # Exportar o objeto selecionado
+        bpy.ops.wm.collada_export(filepath=obj_export_path, selected=True)
+
+        # Desselecionar o objeto após a exportação
+        obj.select_set(False)
+
+print("Exportação concluída.")
