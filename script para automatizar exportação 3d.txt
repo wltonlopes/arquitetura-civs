@@ -2,7 +2,7 @@ import bpy
 import os
 
 # Caminho para salvar os arquivos .dae
-export_path = "C:/Users/welto/OneDrive/Documentos/arquitetura-civs/Blender e Texturas"
+export_path = "./"
 
 # Certifique-se de criar o diretório se ele não existir
 if not os.path.exists(export_path):
